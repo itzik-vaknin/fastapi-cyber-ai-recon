@@ -1,153 +1,82 @@
+import asyncio
 import socket
-import ipaddress
-import os
-from fastapi import Depends, FastAPI, HTTPException, status, Form
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from groq import Groq
-import dns.resolver  # הצינור שעוקף את ה-DNS של קאלי!
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
-# ==========================================
-# חלק 1: הגדרות ותשתית ה-DATABASE
-# ==========================================
-DATABASE_URL = "sqlite:///./recon.db"
+# Import our custom professional enterprise modules
+from database.database import init_db, get_db, ScanResult
+from core.security import verify_token, check_ssrf_mitigation
+from ai.groq_agent import analyze_scan_results_with_ai
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# Initialize FastAPI Application profile setup
+app = FastAPI(
+    title="Secure FastAPI AI Network Recon Agent",
+    description="Production-ready asynchronous cybersecurity scanning system with built-in SSRF protection shields and Groq AI analysis metrics.",
+    version="2.0.0"
+)
 
-class ScanResultModel(Base):
-    __tablename__ = "scans"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    target_host = Column(String)
-    resolved_ip = Column(String)
-    scan_date = Column(String)
+@app.on_event("startup")
+def on_startup():
+    """
+    Triggers database schema initialization on system boot.
+    """
+    init_db()
 
-Base.metadata.create_all(bind=engine)
-
-# ==========================================
-# חלק 2: הקמת השרת ושומר הסף
-# ==========================================
-app = FastAPI()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-def get_db():
-    db = SessionLocal()
+async def scan_single_port(ip: str, port: int, timeout: float = 0.5) -> int or None:
+    """
+    Asynchronously probes a single TCP port using pure socket connection pipes.
+    """
     try:
-        yield db
-    finally:
-        db.close()
+        # Run socket connection logic inside an execution loop timeout filter
+        conn = asyncio.open_connection(ip, port)
+        await asyncio.wait_for(conn, timeout=timeout)
+        return port
+    except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+        return None
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+@app.post("/api/recon", response_model=dict, tags=["Reconnaissence Engine"])
+async def run_network_recon_agent(
+    target_url: str,
+    db: Session = Depends(get_db),
+    token: str = Depends(verify_token)
+):
+    """
+    Core Security API Route: Sanitizes domains, shields against SSRF, 
+    executes multi-port socket scanning loops, logs results, and triggers AI analysis reports.
+    """
+    # 1. Trigger SSRF firewall check and resolve clean IP metrics
+    resolved_ip = check_ssrf_mitigation(target_url)
 
-# ==========================================
-# חלק 3: נתיב ההתחברות (LOGIN)
-# ==========================================
-@app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
-    if username != "admin" or password != "cyber2026":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="שם משתמש או סיסמה שגויים",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return {"access_token": "cyber-recon-secret-key-123", "token_type": "bearer"}
-
-# ==========================================
-# חלק 4: הנתיב המוגן - סריקה, שמירה ב-DB וניתוח AI
-# ==========================================
-@app.get("/api/recon")
-def run_recon(target_url: str, token: str = Depends(oauth2_scheme), db = Depends(get_db)):
+    # 2. Define top targeted enterprise ports to assess
+    target_ports = [21, 22, 23, 25, 53, 80, 110, 139, 443, 445, 1433, 3306, 3389, 8080]
     
-    if token != "cyber-recon-secret-key-123":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-        
-    try:
-        # בדיקה חכמה: עוקפים את ה-DNS של קאלי ופונים ישירות לשרת חיצוני של קלאודפלייר!
-        try:
-            ip_obj = ipaddress.ip_address(target_url)
-            target_ip = str(ip_obj)
-        except ValueError:
-            # הגדרת פותר DNS חיצוני (1.1.1.1)
-            resolver = dns.resolver.Resolver()
-            resolver.nameservers = ["1.1.1.1"]
-            # ניקוי הכתובת מקידומות אם המשתמש הקליד בטעות http://
-            clean_url = target_url.replace("https://", "").replace("http://", "").split("/")[0]
-            answers = resolver.resolve(clean_url, 'A')
-            target_ip = str(answers[0])
-        
-        # חומת האש נגד SSRF
-        ip_check = ipaddress.ip_address(target_ip)
-        if ip_check.is_private or ip_check.is_loopback:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDGEN,
-                detail="❌ חסימת אבטחה (SSRF): אין אישור לסרוק כתובות IP פנימיות!"
-            )
-        
-        # 2. הרצת סריקת הפורטים המהירה
-        ports_to_scan = [21, 22, 80, 443, 8080]
-        scan_results = {}
-        open_ports_list = []
-        
-        for port in ports_to_scan:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-            result = s.connect_ex((target_ip, port))
-            if result == 0:
-                scan_results[str(port)] = "open"
-                open_ports_list.append(port)
-            else:
-                scan_results[str(port)] = "closed_or_filtered"
-            s.close()
-            
-        # 3. שמירת הנתונים ב-Database
-        new_scan = ScanResultModel(
-            target_host=target_url,
-            resolved_ip=target_ip,
-            scan_date="2026-09-19"
-        )
-        db.add(new_scan)
-        db.commit()
-        db.refresh(new_scan)
-        
-        # 4. הפעלת ה-AI Agent בענן הסילוני של Groq
-        if not GROQ_API_KEY:
-            ai_analysis = "API Key missing. Please set GROQ_API_KEY environment variable."
-        else:
-            client = Groq(api_key=GROQ_API_KEY)
-            
-            ai_prompt = f"""
-            You are a cybersecurity expert. Target {target_url} ({target_ip}) was scanned. 
-            Open ports: {open_ports_list}. Give a short 1-sentence risk summary in English.
-            """
-            
-            completion = client.chat.completions.create(
-                model="openai/gpt-oss-20b",
-                messages=[{"role": "user", "content": ai_prompt}]
-            )
-            ai_analysis = completion.choices[0].message.content.strip()
-            
-        return {
-            "status": "success",
-            "saved_in_db_id": new_scan.id,
-            "target_host": target_url,
-            "resolved_ip": target_ip,
-            "port_scan_results": scan_results,
-            "ai_analyst_report": ai_analysis
-        }
-        
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"השרת נתקל בשגיאה הבאה: {str(e)}"
-        )
+    # 3. Execute fast parallel asynchronous network scanning tasks
+    tasks = [scan_single_port(resolved_ip, port) for port in target_ports]
+    scan_outputs = await asyncio.gather(*tasks)
+    open_ports = [port for port in scan_outputs if port is not None]
+
+    # 4. Trigger cloud AI exposure risk summary analysis report from Groq Cloud
+    ai_report = analyze_scan_results_with_ai(target_url, resolved_ip, open_ports)
+
+    # 5. Persist the execution structure cleanly into the SQLite database history ledger
+    db_log = ScanResult(
+        target=target_url,
+        resolved_ip=resolved_ip,
+        open_ports=",".join(map(str, open_ports)),
+        ai_report=ai_report
+    )
+    db.add(db_log)
+    db.commit()
+    db.refresh(db_log)
+
+    # 6. Return standard structured outputs to the authenticated client interface
+    return {
+        "status": "Success",
+        "target_host": target_url,
+        "resolved_ip": resolved_ip,
+        "ports_assessed": len(target_ports),
+        "detected_open_ports": open_ports,
+        "ai_analyst_report": ai_report,
+        "logged_entry_id": db_log.id
+    }
 
