@@ -33,7 +33,7 @@ def init_db():
     """
     Initializes database tables on application launch.
     """
-    Base.metadata.create_create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 def get_db():
     """
