@@ -1,11 +1,12 @@
 import asyncio
 import socket
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 # Import our custom professional enterprise modules
 from database.database import init_db, get_db, ScanResult
-from core.security import verify_token, check_ssrf_mitigation
+from core.security import verify_token, check_ssrf_mitigation, API_TOKEN
 from ai.groq_agent import analyze_scan_results_with_ai
 
 # Initialize FastAPI Application profile setup
@@ -22,12 +23,25 @@ def on_startup():
     """
     init_db()
 
+@app.post("/token", tags=["Authentication Gateway"])
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Visual Authentication Gateway for Swagger UI Swagger UI form submissions.
+    """
+    # Simple hardcoded username and password verification layout
+    if form_data.username == "admin" and form_data.password == "cyber2026":
+        return {"access_token": API_TOKEN, "token_type": "bearer"}
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username or password configuration parameters"
+    )
+
 async def scan_single_port(ip: str, port: int, timeout: float = 0.5) -> int or None:
     """
     Asynchronously probes a single TCP port using pure socket connection pipes.
     """
     try:
-        # Run socket connection logic inside an execution loop timeout filter
         conn = asyncio.open_connection(ip, port)
         await asyncio.wait_for(conn, timeout=timeout)
         return port
@@ -44,21 +58,15 @@ async def run_network_recon_agent(
     Core Security API Route: Sanitizes domains, shields against SSRF, 
     executes multi-port socket scanning loops, logs results, and triggers AI analysis reports.
     """
-    # 1. Trigger SSRF firewall check and resolve clean IP metrics
     resolved_ip = check_ssrf_mitigation(target_url)
-
-    # 2. Define top targeted enterprise ports to assess
-    target_ports = [21, 22, 23, 25, 53, 80, 110, 139, 443, 445, 1433, 3306, 3389, 8080]
+    target_ports = [80, 443, 22, 21, 8080]
     
-    # 3. Execute fast parallel asynchronous network scanning tasks
     tasks = [scan_single_port(resolved_ip, port) for port in target_ports]
     scan_outputs = await asyncio.gather(*tasks)
     open_ports = [port for port in scan_outputs if port is not None]
 
-    # 4. Trigger cloud AI exposure risk summary analysis report from Groq Cloud
     ai_report = analyze_scan_results_with_ai(target_url, resolved_ip, open_ports)
 
-    # 5. Persist the execution structure cleanly into the SQLite database history ledger
     db_log = ScanResult(
         target=target_url,
         resolved_ip=resolved_ip,
@@ -69,7 +77,6 @@ async def run_network_recon_agent(
     db.commit()
     db.refresh(db_log)
 
-    # 6. Return standard structured outputs to the authenticated client interface
     return {
         "status": "Success",
         "target_host": target_url,
