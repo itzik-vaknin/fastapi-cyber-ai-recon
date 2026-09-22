@@ -1,6 +1,6 @@
 # FastAPI Cyber AI Recon Agent 🛡️🧠
 
-A secure, modular, and high-performance network reconnaissance tool built with **FastAPI** and **Python**. This system automates infrastructure port scanning and integrates a cloud-hosted **Groq AI Agent** (Llama-3-8b) to process technical exposure metrics and instantly generate professional risk analyst summaries.
+A secure, modular, and high-performance network reconnaissance tool built with **FastAPI** and **Python**. This system automates infrastructure port scanning and integrates a cloud-hosted **Groq AI Agent** to process technical exposure metrics and instantly generate professional risk analyst summaries.
 
 ⚠️ **Legal Notice:** This tool is intended strictly for authorized security testing, lab environments, and systems you legally own or have explicit, written permission to assess.
 
@@ -59,6 +59,7 @@ Socket data is automatically pushed into relational tables and sent to the Groq 
 * **Modular Framework Design:** Complete separation of concerns mapping into clear architectural layers (`core/`, `database/`, `ai/`).
 * **Token Gate Filter:** Critical scanner API components are blocked using an **OAuth2 Bearer Token** security middleware.
 * **SSRF Prevention Core:** Validates target endpoints via low-level DNS resolution checks to block internal loops (`127.0.0.1`, private IP blocks).
+* **Fault-Tolerant AI Engine:** Features an automated **Local Fallback Engine** inside `ai/groq_agent.py` to intercept upstream API key or cloud model broker failures, providing graceful degradation when the external AI service is unavailable.
 * **Automated Engineering Tests:** Backed by an automated unit testing architecture (**Pytest** environment validation engine).
 
 ---
@@ -90,3 +91,4 @@ To trigger the automated SSRF firewall testing matrix infrastructure natively:
 ```bash
 pytest
 ```
+
