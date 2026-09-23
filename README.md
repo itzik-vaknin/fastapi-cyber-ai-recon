@@ -1,6 +1,6 @@
 # FastAPI Cyber AI Recon Agent 🛡️🧠
 
-A secure, modular, and high-performance network reconnaissance tool built with **FastAPI** and **Python**. This system automates infrastructure port scanning and integrates a cloud-hosted **Groq AI Agent** to process technical exposure metrics and instantly generate professional risk analyst summaries.
+A modular network reconnaissance tool built with **FastAPI** and **Python**. The system automates infrastructure port scanning and integrates a cloud-hosted **Groq AI** model to analyze technical exposure data and generate risk analyst summaries.
 
 ⚠️ **Legal Notice:** This tool is intended strictly for authorized security testing, lab environments, and systems you legally own or have explicit, written permission to assess.
 
@@ -21,7 +21,7 @@ A secure, modular, and high-performance network reconnaissance tool built with *
                     │
             ┌───────▼────────┐
             │ Target Validator│
-            │  SSRF Defense   │
+            │  SSRF Mitigation│
             └───────┬────────┘
                     │
              ┌──────▼───────┐
@@ -31,64 +31,108 @@ A secure, modular, and high-performance network reconnaissance tool built with *
           ┌─────────┴─────────┐
           │                   │
     ┌─────▼─────┐      ┌──────▼──────┐
-    │  SQLite   │      │  Groq AI    │
+    │  SQLite   │      │   Groq AI   │
     │  History  │      │   Analysis  │
     └───────────┘      └─────────────┘
 ```
 
 ---
 
-## 📸 Core Interface Evaluation
+## 📸 Core Features
 
-### 🔒 1. Secure Access Gateway (OAuth2 Framework)
-The entire application routing infrastructure is tightly gated using token validation constraints.
+### 🔒 1. Secure Access Gateway — Bearer Token Authentication
+
+The scanner API is protected using Bearer Token authentication.
+
 ![Secure Gateway Authentication](01_auth.png)
 
-### 📐 2. Input Configuration & SSRF Firewall Shield
-Application inputs are thoroughly sanitized against Server-Side Request Forgery (SSRF) vulnerabilities to shield local assets.
+### 🛡️ 2. Input Validation & SSRF Mitigation
+
+Target inputs are validated using DNS resolution checks to help prevent access to loopback and private network addresses.
+
 ![Port Scanner Parameters Setup](02_request.png)
 
-### 💾 3. Live Server Response & Automated AI Analysis Reports
-Socket data is automatically pushed into relational tables and sent to the Groq Cloud runner for immediate threat indexing.
+### 🤖 3. Server Response & AI Analysis
+
+Scan results are stored in SQLite and sent to the Groq AI model for analysis.
+
 ![Server Response and AI Analytics Report](03_response.png)
 
 ---
 
 ## 🔒 Security Architecture & Applied Controls
 
-* **Modular Framework Design:** Complete separation of concerns mapping into clear architectural layers (`core/`, `database/`, `ai/`).
-* **Token Gate Filter:** Critical scanner API components are blocked using an **OAuth2 Bearer Token** security middleware.
-* **SSRF Prevention Core:** Validates target endpoints via low-level DNS resolution checks to block internal loops (`127.0.0.1`, private IP blocks).
-* **Fault-Tolerant AI Engine:** Features an automated **Local Fallback Engine** inside `ai/groq_agent.py` to intercept upstream API key or cloud model broker failures, providing graceful degradation when the external AI service is unavailable.
-* **Automated Engineering Tests:** Backed by an automated unit testing architecture (**Pytest** environment validation engine).
+* **Modular Framework Design:** Separation of concerns across clear architectural layers (`core/`, `database/`, `ai/`).
+* **Bearer Token Authentication:** Scanner API endpoints are protected using Bearer Token authentication.
+* **SSRF Mitigation:** Target endpoints are resolved and checked against loopback and private IP addresses.
+* **Fault-Tolerant AI Engine:** Includes a **Local Fallback Engine** in `ai/groq_agent.py` to provide graceful degradation when the external AI service is unavailable.
+* **Automated Testing:** Includes automated tests using **Pytest** for application security controls.
+* **Environment-Based Configuration:** Sensitive credentials are loaded from environment variables instead of being stored directly in the source code.
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start
 
-### Installation Tree
+### Installation
+
 ```bash
-git clone https://github.com
+git clone https://github.com/itzik-vaknin/fastapi-cyber-ai-recon.git
 cd fastapi-cyber-ai-recon
+
 python3 -m venv venv
 source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### Environment Variable Profile Setup
-Create a local `.env` configuration file mapping your secret access token key:
+### Environment Variables
+
+Create a local `.env` file:
+
 ```text
-GROQ_API_KEY=your_secret_groq_api_token_here
+GROQ_API_KEY=your_groq_api_key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_strong_password
+API_BEARER_TOKEN=your_long_random_token
 ```
 
-### Launch Environment Run Profile
+**Do not commit the `.env` file to Git.**
+
+### Run the Application
+
 ```bash
 ./venv/bin/uvicorn main:app --reload
 ```
 
-### Running Automated Framework Validation Tests
-To trigger the automated SSRF firewall testing matrix infrastructure natively:
+### Run Automated Tests
+
 ```bash
 pytest
 ```
+
+---
+
+## 🧰 Technologies
+
+* Python
+* FastAPI
+* SQLAlchemy
+* SQLite
+* Groq AI
+* Pytest
+* AsyncIO
+
+---
+
+## 🎯 Project Goal
+
+The goal of this project was to combine cybersecurity and backend development into a practical application.
+
+The project demonstrates how reconnaissance, API development, authentication, SSRF mitigation, database storage, automated testing, and AI-assisted analysis can be integrated into a single modular application.
+
+---
+
+## ⚠️ Responsible Use
+
+Use this project only for authorized security testing, personal labs, and systems where you have explicit permission to perform security assessments.
 
