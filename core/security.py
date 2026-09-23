@@ -1,48 +1,48 @@
-import socket
+import os
 import ipaddress
+import socket
+
 from fastapi import HTTPException, Security, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Hardcoded single admin token for the MVP security gateway profile
-API_TOKEN = "cyber_recon_agent_secret_token_2026"
+security_bearer = HTTPBearer()
 
-# Router authentication protocol instantiation
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+API_TOKEN = os.getenv("API_BEARER_TOKEN")
 
-def verify_token(token: str = Security(oauth2_scheme)) -> str:
-    """
-    Validates the inbound Bearer Token against the authorization scheme gates.
-    """
-    if token != API_TOKEN:
+
+def verify_token(
+    credentials: HTTPAuthorizationCredentials = Security(security_bearer),
+):
+    """Validate the incoming Bearer token against the environment variable."""
+    if not API_TOKEN or credentials.credentials != API_TOKEN:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid security token or unauthorized access parameters",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid or missing credentials",
         )
-    return token
 
-def check_ssrf_mitigation(target_host: str) -> str:
-    """
-    SSRF Firewall Core Engine: Resolves inbound domain hostnames 
-    and systematically drops requests targeting private or internal networks.
-    """
+    return credentials.credentials
+
+
+def check_ssrf_mitigation(target_url: str) -> str:
+    """Resolve the target and block loopback/private IP addresses."""
     try:
-        # Resolve target to an active IP address using clean DNS sockets
-        resolved_ip = socket.gethostbyname(target_host)
+        resolved_ip = socket.gethostbyname(target_url)
         ip_obj = ipaddress.ip_address(resolved_ip)
 
-        # Drop requests targeting local loopback or private ranges (RFC 1918)
         if ip_obj.is_loopback or ip_obj.is_private:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="❌ Security Block (SSRF): Scanning internal or private network IP scopes is strictly forbidden!"
+                detail="Access denied: target resolves to a protected network.",
             )
+
         return resolved_ip
 
-    except socket.gaierror:
+    except HTTPException:
+        raise
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="❌ Resolution Error: Invalid host scope target or DNS failure"
+            detail="Failed to resolve target host.",
         )
-    except HTTPException:
-        raise  # Bubble up the 403 SSRF security alert directly
+
