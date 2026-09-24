@@ -1,47 +1,42 @@
 import os
-from fastapi import HTTPException, status
 from groq import Groq
 
-def analyze_scan_results_with_ai(target: str, resolved_ip: str, open_ports: list) -> str:
+def analyze_scan_results_with_ai(target_url: str, resolved_ip: str, open_ports: list) -> str:
     """
-    Triggers the Groq AI engine to execute an infrastructure exposure assessment.
-    Features a local fallback engine to guarantee 100% service availability.
+    Analyzes infrastructure scan findings.
+    Provides graceful degradation through a local fallback when the external LLM service is unavailable.
     """
-    # 1. Local Fallback Blueprint Configuration
-    ports_str = ", ".join(map(str, open_ports)) if open_ports else "None"
+    api_key = os.getenv("GROQ_API_KEY")
+    
     local_report = (
         f"--- Local Automated Security Analysis ---\n"
-        f"Infrastructure scan assessment for target '{target}' ({resolved_ip}) completed successfully.\n"
-        f"Detected Exposed Ports: {ports_str}\n"
-        f"Risk Severity Index: {'HIGH EXPOSURE RISK' if open_ports else 'LOW/NO EXPOSURE'}\n"
+        f"Infrastructure scan assessment for target '{target_url}' ({resolved_ip}) completed successfully.\n"
+        f"Detected Exposed Ports: {', '.join(map(str, open_ports)) if open_ports else 'None'}\n"
+        f"Risk Severity Index: HIGH EXPOSURE RISK\n"
         f"Remediation Plan: Ensure firewall configuration templates filter unauthorized inbound requests."
     )
-
-    api_key = os.getenv("GROQ_API_KEY")
+    
     if not api_key:
         return local_report
-
+        
     try:
-        # 2. Try utilizing the core production reasoning engine model target
         client = Groq(api_key=api_key)
-        prompt = (
-            f"You are a Senior Network Security Analyst. Analyze this infrastructure scan result:\n"
-            f"- Target Host Name: {target}\n"
-            f"- Resolved Target IP: {resolved_ip}\n"
-            f"- Detected Open Ports: {ports_str}\n\n"
-            f"Provide a concise threat summary report."
+        prompt_payload = (
+            f"Perform a professional security analyst risk assessment for infrastructure host '{target_url}' "
+            f"resolving to IP {resolved_ip}. The scanner detected the following open ports: {open_ports}. "
+            f"Provide a concise exposure summary and targeted firewall mitigation strategies."
         )
-
+        
         completion = client.chat.completions.create(
-            # Using the primary verified open-weight production runner model identifier
-            model="openai/gpt-oss-120b",
-            messages=[{"role": "user", "content": prompt}],
+            model="llama3-8b-8192",
+            messages=[
+                {"role": "system", "content": "You are an expert infrastructure penetration testing assistant."},
+                {"role": "user", "content": prompt_payload}
+            ],
             temperature=0.2,
-            max_tokens=300
+            max_tokens=500
         )
-        return completion.choices.message.content
-
+        return completion.choices[0].message.content
     except Exception:
-        # 3. Secure Fallback Pipeline Activation: Drop external failures, return valid string
         return local_report
 

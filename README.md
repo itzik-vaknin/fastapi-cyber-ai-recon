@@ -1,8 +1,8 @@
-# FastAPI Cyber AI Recon Agent 🛡️🧠
+# FastAPI Cyber AI Recon Agent
 
-A modular network reconnaissance tool built with **FastAPI** and **Python**. The system automates infrastructure port scanning and integrates a cloud-hosted **Groq AI** model to analyze technical exposure data and generate risk analyst summaries.
+A security-focused educational reconnaissance platform built with Python and FastAPI, combining asynchronous port scanning, SSRF mitigation, authentication, SQLite persistence, and LLM-assisted security analysis with a local fallback.
 
-⚠️ **Legal Notice:** This tool is intended strictly for authorized security testing, lab environments, and systems you legally own or have explicit, written permission to assess.
+**Legal Notice:** This tool is intended strictly for authorized security testing, lab environments, and systems you legally own or have explicit, written permission to assess.
 
 ---
 
@@ -21,7 +21,7 @@ A modular network reconnaissance tool built with **FastAPI** and **Python**. The
                     │
             ┌───────▼────────┐
             │ Target Validator│
-            │  SSRF Mitigation│
+            │  SSRF Defense   │
             └───────┬────────┘
                     │
              ┌──────▼───────┐
@@ -38,101 +38,74 @@ A modular network reconnaissance tool built with **FastAPI** and **Python**. The
 
 ---
 
-## 📸 Core Features
+## 🚀 Core Features
 
-### 🔒 1. Secure Access Gateway — Bearer Token Authentication
+- Asynchronous TCP port scanning
+- FastAPI REST API
+- Bearer Token authentication
+- SSRF mitigation with IP validation
+- SQLite persistence
+- LLM-assisted reconnaissance analysis using Groq
+- Local fallback analysis
+- Automated tests with Pytest
+- Environment-based configuration
 
-The scanner API is protected using Bearer Token authentication.
+---
 
+## 📸 Core Interface Evaluation
+
+### 1. Secure Access Gateway (Bearer Token Authentication)
+The application routing infrastructure is gated using token validation constraints.
 ![Secure Gateway Authentication](01_auth.png)
 
-### 🛡️ 2. Input Validation & SSRF Mitigation
-
-Target inputs are validated using DNS resolution checks to help prevent access to loopback and private network addresses.
-
+### 2. Input Configuration & SSRF Firewall Shield
+Application inputs are sanitized against Server-Side Request Forgery (SSRF) vulnerabilities to shield local assets.
 ![Port Scanner Parameters Setup](02_request.png)
 
-### 🤖 3. Server Response & AI Analysis
-
-Scan results are stored in SQLite and sent to the Groq AI model for analysis.
-
+### 3. Live Server Response & Automated AI Analysis Reports
+Socket data is pushed into relational tables and sent to the Groq Cloud runner for threat indexing.
 ![Server Response and AI Analytics Report](03_response.png)
 
 ---
 
 ## 🔒 Security Architecture & Applied Controls
 
-* **Modular Framework Design:** Separation of concerns across clear architectural layers (`core/`, `database/`, `ai/`).
-* **Bearer Token Authentication:** Scanner API endpoints are protected using Bearer Token authentication.
-* **SSRF Mitigation:** Target endpoints are resolved and checked against loopback and private IP addresses.
-* **Fault-Tolerant AI Engine:** Includes a **Local Fallback Engine** in `ai/groq_agent.py` to provide graceful degradation when the external AI service is unavailable.
-* **Automated Testing:** Includes automated tests using **Pytest** for application security controls.
-* **Environment-Based Configuration:** Sensitive credentials are loaded from environment variables instead of being stored directly in the source code.
+* **Modular Framework Design:** Complete separation of concerns mapping into clear architectural layers (`core/`, `database/`, `ai/`).
+* **Token Gate Filter:** Critical scanner API components are blocked using a **Bearer Token Authentication** security middleware.
+* **SSRF Prevention Core:** Validates target endpoints via DNS resolution checks to block internal loops (`127.0.0.1`, private IP blocks, link-local, and reserved ranges).
+* **Fault-Tolerant AI Engine:** Features an automated **Local Fallback Engine** inside `ai/groq_agent.py` to handle upstream API key or cloud model failures, providing graceful degradation when the external AI service is unavailable.
+* **Automated Engineering Tests:** Backed by automated tests with Pytest environment validation engine.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
-### Installation
-
+### Installation Tree
 ```bash
-git clone https://github.com/itzik-vaknin/fastapi-cyber-ai-recon.git
+git clone https://github.com
 cd fastapi-cyber-ai-recon
-
 python3 -m venv venv
 source venv/bin/activate
-
 pip install -r requirements.txt
 ```
 
-### Environment Variables
-
-Create a local `.env` file:
-
+### Environment Variable Profile Setup
+Create a local `.env` configuration file mapping your secret access token key:
 ```text
-GROQ_API_KEY=your_groq_api_key
+GROQ_API_KEY=your_secret_groq_api_token_here
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=your_strong_password
-API_BEARER_TOKEN=your_long_random_token
+API_BEARER_TOKEN=your_strong_random_token
 ```
 
-**Do not commit the `.env` file to Git.**
-
-### Run the Application
-
+### Launch Environment Run Profile
 ```bash
 ./venv/bin/uvicorn main:app --reload
 ```
 
-### Run Automated Tests
-
+### Running Automated Framework Validation Tests
+To trigger the automated SSRF firewall testing matrix infrastructure natively:
 ```bash
 pytest
 ```
-
----
-
-## 🧰 Technologies
-
-* Python
-* FastAPI
-* SQLAlchemy
-* SQLite
-* Groq AI
-* Pytest
-* AsyncIO
-
----
-
-## 🎯 Project Goal
-
-The goal of this project was to combine cybersecurity and backend development into a practical application.
-
-The project demonstrates how reconnaissance, API development, authentication, SSRF mitigation, database storage, automated testing, and AI-assisted analysis can be integrated into a single modular application.
-
----
-
-## ⚠️ Responsible Use
-
-Use this project only for authorized security testing, personal labs, and systems where you have explicit permission to perform security assessments.
 

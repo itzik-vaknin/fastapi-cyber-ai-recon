@@ -14,6 +14,8 @@ from database.database import init_db, get_db, ScanResult
 from core.security import verify_token, check_ssrf_mitigation
 from ai.groq_agent import analyze_scan_results_with_ai
 
+# Global target configurations
+DEFAULT_PORTS = [80, 443, 22, 21, 8080]
 
 app = FastAPI(
     title="Secure FastAPI Network Recon Agent",
@@ -94,11 +96,9 @@ async def run_network_recon_agent(
 ):
     resolved_ip = check_ssrf_mitigation(target_url)
 
-    target_ports = [80, 443, 22, 21, 8080]
-
     tasks = [
         scan_single_port(resolved_ip, port)
-        for port in target_ports
+        for port in DEFAULT_PORTS
     ]
 
     scan_outputs = await asyncio.gather(*tasks)
@@ -130,7 +130,7 @@ async def run_network_recon_agent(
         "status": "Success",
         "target_host": target_url,
         "resolved_ip": resolved_ip,
-        "ports_assessed": len(target_ports),
+        "ports_assessed": len(DEFAULT_PORTS),
         "detected_open_ports": open_ports,
         "ai_analyst_report": ai_report,
         "logged_entry_id": db_log.id,
